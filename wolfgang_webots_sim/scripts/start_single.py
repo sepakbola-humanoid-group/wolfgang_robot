@@ -7,6 +7,7 @@ from wolfgang_webots_sim.webots_robot_controller import RobotController
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--robot_name', help="which robot should be started")
+parser.add_argument('--robot_type', help="which robot type should be started")
 parser.add_argument('--sim_id', help="identifier of the simulation", default="")
 parser.add_argument('--void-controller', action='store_true',
                     help="if true, a controller that only steps and does nothing else")
@@ -36,7 +37,7 @@ if args.void_controller:
         r.step(int(r.getBasicTimeStep()))
 else:
     rospy.logdebug("Starting ros interface for " + args.robot_name)
-    r = RobotController(ros_active=True, do_ros_init=False,
+    r = RobotController(ros_active=True, do_ros_init=False, base_ns=f"{args.robot_name}/", robot=args.robot_type,
                         recognize=args.recognize, camera_active=(not args.disable_camera))
     while not rospy.is_shutdown():
         r.step()

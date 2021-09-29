@@ -58,7 +58,8 @@ class RobotController:
             accel_name = "imu accelerometer"
             gyro_name = "imu gyro"
             camera_name = "camera"
-            pressure_sensor_names = ["llb", "llf", "lrf", "lrb", "rlb", "rlf", "rrf", "rrb"]
+            pressure_sensor_names = ["llb", "llf",
+                                     "lrf", "lrb", "rlb", "rlf", "rrf", "rrb"]
             self.pressure_sensors = []
             for name in pressure_sensor_names:
                 sensor = self.robot_node.getDevice(name)
@@ -91,24 +92,39 @@ class RobotController:
             camera_name = "CameraTop"
             self.switch_coordinate_system = False
         elif robot == 'op3':
-            self.motor_names = ["ShoulderR", "ShoulderL", "ArmUpperR", "ArmUpperL", "ArmLowerR", "ArmLowerL",
-                                "PelvYR", "PelvYL", "PelvR", "PelvL", "LegUpperR", "LegUpperL", "LegLowerR",
-                                "LegLowerL", "AnkleR", "AnkleL", "FootR", "FootL", "Neck", "Head"]
+            # self.motor_names = ["ShoulderR", "ShoulderL", "ArmUpperR", "ArmUpperL", "ArmLowerR", "ArmLowerL",
+            #                     "PelvYR", "PelvYL", "PelvR", "PelvL", "LegUpperR", "LegUpperL", "LegLowerR",
+            #                     "LegLowerL", "AnkleR", "AnkleL", "FootR", "FootL", "Neck", "Head"]
+            self.motor_names = ["RShoulderPitch [shoulder]", "LShoulderPitch [shoulder]", "RShoulderRoll",
+                                "LShoulderRoll", "RElbow",
+                                "LElbow", "RHipYaw", "LHipYaw", "RHipRoll [hip]", "LHipRoll [hip]", "RHipPitch",
+                                "LHipPitch",
+                                "RKnee", "LKnee", "RAnklePitch", "LAnklePitch", "RAnkleRoll", "LAnkleRoll", "HeadPan",
+                                "HeadTilt"]
+
             self.external_motor_names = ["r_sho_pitch", "l_sho_pitch", "r_sho_roll", "l_sho_roll",
                                          "r_el", "l_el", "r_hip_yaw", "l_hip_yaw", "r_hip_roll", "l_hip_roll",
                                          "r_hip_pitch", "l_hip_pitch", "r_knee", "l_knee", "r_ank_pitch",
                                          "l_ank_pitch", "r_ank_roll", "l_ank_roll", "head_pan", "head_tilt"]
-            self.sensor_suffix = "S"
-            accel_name = "Accelerometer"
-            gyro_name = "Gyro"
-            camera_name = "Camera"
+            self.sensor_suffix = "_sensor"
+            accel_name = "imu accelerometer"
+            gyro_name = "imu gyro"
+            camera_name = "camera"
             self.switch_coordinate_system = False
+            pressure_sensor_names = ["llb", "llf",
+                                     "lrf", "lrb", "rlb", "rlf", "rrf", "rrb"]
+            self.pressure_sensors = []
+            for name in pressure_sensor_names:
+                sensor = self.robot_node.getDevice(name)
+                sensor.enable(self.timestep)
+                self.pressure_sensors.append(sensor)
 
         # self.robot_node = self.supervisor.getFromDef(self.robot_node_name)
         for motor_name in self.motor_names:
             self.motors.append(self.robot_node.getDevice(motor_name))
             self.motors[-1].enableTorqueFeedback(self.timestep)
-            self.sensors.append(self.robot_node.getDevice(motor_name + self.sensor_suffix))
+            self.sensors.append(self.robot_node.getDevice(
+                motor_name + self.sensor_suffix))
             self.sensors[-1].enable(self.timestep)
 
         self.accel = self.robot_node.getDevice(accel_name)
@@ -116,7 +132,8 @@ class RobotController:
         self.gyro = self.robot_node.getDevice(gyro_name)
         self.gyro.enable(self.timestep)
         if self.is_wolfgang:
-            self.accel_head = self.robot_node.getDevice("imu_head accelerometer")
+            self.accel_head = self.robot_node.getDevice(
+                "imu_head accelerometer")
             self.accel_head.enable(self.timestep)
             self.gyro_head = self.robot_node.getDevice("imu_head gyro")
             self.gyro_head.enable(self.timestep)
@@ -139,24 +156,37 @@ class RobotController:
             else:
                 clock_topic = base_ns + "clock"
             if do_ros_init:
-                rospy.init_node("webots_ros_interface", argv=['clock:=' + clock_topic])
+                rospy.init_node("webots_ros_interface", argv=[
+                                'clock:=' + clock_topic])
             self.l_sole_frame = rospy.get_param("~l_sole_frame", "l_sole")
             self.r_sole_frame = rospy.get_param("~r_sole_frame", "r_sole")
-            self.camera_optical_frame = rospy.get_param("~camera_optical_frame", "camera_optical_frame")
-            self.head_imu_frame = rospy.get_param("~head_imu_frame", "imu_frame_2")
+            self.camera_optical_frame = rospy.get_param(
+                "~camera_optical_frame", "camera_optical_frame")
+            self.head_imu_frame = rospy.get_param(
+                "~head_imu_frame", "imu_frame_2")
             self.imu_frame = rospy.get_param("~imu_frame", "imu_frame")
-            self.pub_js = rospy.Publisher(base_ns + "joint_states", JointState, queue_size=1)
-            self.pub_imu = rospy.Publisher(base_ns + "imu/data_raw", Imu, queue_size=1)
+            self.pub_js = rospy.Publisher(
+                base_ns + "joint_states", JointState, queue_size=1)
+            self.pub_imu = rospy.Publisher(
+                base_ns + "imu/data_raw", Imu, queue_size=1)
 
-            self.pub_imu_head = rospy.Publisher(base_ns + "imu_head/data", Imu, queue_size=1)
-            self.pub_cam = rospy.Publisher(base_ns + "camera/image_proc", Image, queue_size=1)
-            self.pub_cam_info = rospy.Publisher(base_ns + "camera/camera_info", CameraInfo, queue_size=1, latch=True)
+            self.pub_imu_head = rospy.Publisher(
+                base_ns + "imu_head/data", Imu, queue_size=1)
+            self.pub_cam = rospy.Publisher(
+                base_ns + "camera/image_proc", Image, queue_size=1)
+            self.pub_cam_info = rospy.Publisher(
+                base_ns + "camera/camera_info", CameraInfo, queue_size=1, latch=True)
 
-            self.pub_pres_left = rospy.Publisher(base_ns + "foot_pressure_left/filtered", FootPressure, queue_size=1)
-            self.pub_pres_right = rospy.Publisher(base_ns + "foot_pressure_right/filtered", FootPressure, queue_size=1)
-            self.cop_l_pub_ = rospy.Publisher(base_ns + "cop_l", PointStamped, queue_size=1)
-            self.cop_r_pub_ = rospy.Publisher(base_ns + "cop_r", PointStamped, queue_size=1)
-            rospy.Subscriber(base_ns + "DynamixelController/command", JointCommand, self.command_cb)
+            self.pub_pres_left = rospy.Publisher(
+                base_ns + "foot_pressure_left/filtered", FootPressure, queue_size=1)
+            self.pub_pres_right = rospy.Publisher(
+                base_ns + "foot_pressure_right/filtered", FootPressure, queue_size=1)
+            self.cop_l_pub_ = rospy.Publisher(
+                base_ns + "cop_l", PointStamped, queue_size=1)
+            self.cop_r_pub_ = rospy.Publisher(
+                base_ns + "cop_r", PointStamped, queue_size=1)
+            rospy.Subscriber(
+                base_ns + "DynamixelController/command", JointCommand, self.command_cb)
 
             # publish camera info once, it will be latched
             self.cam_info = CameraInfo()
@@ -165,9 +195,11 @@ class RobotController:
             self.cam_info.height = self.camera.getHeight()
             self.cam_info.width = self.camera.getWidth()
             f_y = self.mat_from_fov_and_resolution(
-                self.h_fov_to_v_fov(self.camera.getFov(), self.cam_info.height, self.cam_info.width),
+                self.h_fov_to_v_fov(self.camera.getFov(),
+                                    self.cam_info.height, self.cam_info.width),
                 self.cam_info.height)
-            f_x = self.mat_from_fov_and_resolution(self.camera.getFov(), self.cam_info.width)
+            f_x = self.mat_from_fov_and_resolution(
+                self.camera.getFov(), self.cam_info.width)
             self.cam_info.K = [f_x, 0, self.cam_info.width / 2,
                                0, f_y, self.cam_info.height / 2,
                                0, 0, 1]
@@ -216,9 +248,11 @@ class RobotController:
                     motor_index = self.external_motor_names.index(name)
                     self.motors[motor_index].setPosition(command.positions[i])
                     if len(command.velocities) == 0 or command.velocities[i] == -1:
-                        self.motors[motor_index].setVelocity(self.motors[motor_index].getMaxVelocity())
+                        self.motors[motor_index].setVelocity(
+                            self.motors[motor_index].getMaxVelocity())
                     else:
-                        self.motors[motor_index].setVelocity(command.velocities[i])
+                        self.motors[motor_index].setVelocity(
+                            command.velocities[i])
 
                 except ValueError:
                     print(f"invalid motor specified ({name})")
@@ -227,10 +261,10 @@ class RobotController:
             for i, name in enumerate(command.joint_names):
                 try:
                     motor_index = self.external_motor_names.index(name)
-                    self.motors[motor_index].setTorque(command.accelerations[i])
+                    self.motors[motor_index].setTorque(
+                        command.accelerations[i])
                 except ValueError:
                     print(f"invalid motor specified ({name})")
-
 
     def set_head_tilt(self, pos):
         self.motors[-1].setPosition(pos)
@@ -346,7 +380,8 @@ class RobotController:
             annotation += f"{img_name}|robot|not in image\n"
         with open(os.path.join(self.img_save_dir, "annotations.txt"), "a") as f:
             f.write(annotation)
-        self.camera.saveImage(filename=os.path.join(self.img_save_dir, img_name), quality=100)
+        self.camera.saveImage(filename=os.path.join(
+            self.img_save_dir, img_name), quality=100)
 
     def get_image(self):
         return self.camera.getImage()
@@ -377,7 +412,8 @@ class RobotController:
         cop_l = PointStamped()
         cop_l.header.frame_id = self.l_sole_frame
         cop_l.header.stamp = current_time
-        sum = left_pressure.left_back + left_pressure.left_front + left_pressure.right_front + left_pressure.right_back
+        sum = left_pressure.left_back + left_pressure.left_front + \
+            left_pressure.right_front + left_pressure.right_back
         if sum > threshold:
             cop_l.point.x = (left_pressure.left_front + left_pressure.right_front -
                              left_pressure.left_back - left_pressure.right_back) * pos_x / sum
@@ -392,7 +428,8 @@ class RobotController:
         cop_r = PointStamped()
         cop_r.header.frame_id = self.r_sole_frame
         cop_r.header.stamp = current_time
-        sum = right_pressure.right_back + right_pressure.right_front + right_pressure.right_front + right_pressure.right_back
+        sum = right_pressure.right_back + right_pressure.right_front + \
+            right_pressure.right_front + right_pressure.right_back
         if sum > threshold:
             cop_r.point.x = (right_pressure.left_front + right_pressure.right_front -
                              right_pressure.left_back - right_pressure.right_back) * pos_x / sum
