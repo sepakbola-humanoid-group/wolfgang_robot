@@ -20,7 +20,8 @@ class ROSInterface:
             if namespace == '':
                 rospy.init_node("pybullet_sim")
             else:
-                rospy.init_node('pybullet_sim', anonymous=True, argv=['clock:=/' + self.namespace + '/clock'])
+                rospy.init_node('pybullet_sim', anonymous=True, argv=[
+                                'clock:=/' + self.namespace + '/clock'])
 
         self.simulation = simulation
         self.namespace = namespace
@@ -43,7 +44,8 @@ class ROSInterface:
         self.odom_msg.header.frame_id = "odom"
         self.odom_msg.child_frame_id = "base_link"
 
-        srv = Server(simConfig, self._dynamic_reconfigure_callback, namespace=namespace)
+        srv = Server(simConfig, self._dynamic_reconfigure_callback,
+                     namespace=namespace)
 
         # publisher
         self.left_foot_pressure_publisher = rospy.Publisher(self.namespace + "foot_pressure_left/raw", FootPressure,
@@ -54,13 +56,20 @@ class ROSInterface:
                                                                      FootPressure, queue_size=1)
         self.right_foot_pressure_publisher_filtered = rospy.Publisher(self.namespace + "foot_pressure_right/filtered",
                                                                       FootPressure, queue_size=1)
-        self.joint_publisher = rospy.Publisher(self.namespace + "joint_states", JointState, queue_size=1)
-        self.imu_publisher = rospy.Publisher(self.namespace + "imu/data", Imu, queue_size=1)
-        self.clock_publisher = rospy.Publisher(self.namespace + "clock", Clock, queue_size=1)
-        self.real_time_factor_publisher = rospy.Publisher(self.namespace + "real_time_factor", Float32, queue_size=1)
-        self.true_odom_publisher = rospy.Publisher(self.namespace + "true_odom", Odometry, queue_size=1)
-        self.cop_l_pub_ = rospy.Publisher(self.namespace + "cop_l", PointStamped, queue_size=1)
-        self.cop_r_pub_ = rospy.Publisher(self.namespace + "cop_r", PointStamped, queue_size=1)
+        self.joint_publisher = rospy.Publisher(
+            self.namespace + "joint_states", JointState, queue_size=1)
+        self.imu_publisher = rospy.Publisher(
+            self.namespace + "imu/data", Imu, queue_size=1)
+        self.clock_publisher = rospy.Publisher(
+            self.namespace + "clock", Clock, queue_size=1)
+        self.real_time_factor_publisher = rospy.Publisher(
+            self.namespace + "real_time_factor", Float32, queue_size=1)
+        self.true_odom_publisher = rospy.Publisher(
+            self.namespace + "true_odom", Odometry, queue_size=1)
+        self.cop_l_pub_ = rospy.Publisher(
+            self.namespace + "cop_l", PointStamped, queue_size=1)
+        self.cop_r_pub_ = rospy.Publisher(
+            self.namespace + "cop_r", PointStamped, queue_size=1)
 
         # subscriber
         self.joint_goal_subscriber = rospy.Subscriber(self.namespace + "DynamixelController/command", JointCommand,
@@ -87,7 +96,8 @@ class ROSInterface:
 
     def compute_real_time_factor(self):
         time_now = time.time()
-        self.real_time_msg.data = self.simulation.timestep / (time_now - self.last_time)
+        self.real_time_msg.data = self.simulation.timestep / \
+            (time_now - self.last_time)
         self.last_time = time_now
         self.real_time_factor_publisher.publish(self.real_time_msg)
 
@@ -104,7 +114,8 @@ class ROSInterface:
         self.joint_state_msg.position = positions
         self.joint_state_msg.velocity = velocities
         self.joint_state_msg.effort = efforts
-        self.joint_state_msg.header.stamp = rospy.Time.from_seconds(self.simulation.time)
+        self.joint_state_msg.header.stamp = rospy.Time.from_seconds(
+            self.simulation.time)
         return self.joint_state_msg
 
     def publish_joints(self):
@@ -121,16 +132,19 @@ class ROSInterface:
         self.imu_msg.angular_velocity.y = angular_vel[1]
         self.imu_msg.angular_velocity.z = angular_vel[2]
         # simple acceleration computation by using diff of velocities
-        linear_acc = tuple(map(lambda i, j: i - j, self.last_linear_vel, linear_vel))
+        linear_acc = tuple(
+            map(lambda i, j: i - j, self.last_linear_vel, linear_vel))
         self.last_linear_vel = linear_vel
-        #adding gravity to the acceleration
-        r,p,y = euler_from_quaternion(orientation)
-        gravity = [r*9.81,p*9.81,y*9.81]
-        linear_acc = tuple([linear_acc[0]+gravity[0], linear_acc[1]+gravity[1], linear_acc[2]+gravity[2]])
+        # adding gravity to the acceleration
+        r, p, y = euler_from_quaternion(orientation)
+        gravity = [r*9.81, p*9.81, y*9.81]
+        linear_acc = tuple(
+            [linear_acc[0]+gravity[0], linear_acc[1]+gravity[1], linear_acc[2]+gravity[2]])
         self.imu_msg.linear_acceleration.x = linear_acc[0]
         self.imu_msg.linear_acceleration.y = linear_acc[1]
         self.imu_msg.linear_acceleration.z = linear_acc[2]
-        self.imu_msg.header.stamp = rospy.Time.from_seconds(self.simulation.time)
+        self.imu_msg.header.stamp = rospy.Time.from_seconds(
+            self.simulation.time)
         return self.imu_msg
 
     def publish_imu(self):
@@ -202,7 +216,8 @@ class ROSInterface:
         self.foot_msg_right.left_front = f_rlf[1]
         self.foot_msg_right.right_front = f_rrf[1]
         self.foot_msg_right.right_back = f_rrb[1]
-        self.right_foot_pressure_publisher_filtered.publish(self.foot_msg_right)
+        self.right_foot_pressure_publisher_filtered.publish(
+            self.foot_msg_right)
 
         # center position on foot
         pos_x = 0.085
@@ -214,9 +229,11 @@ class ROSInterface:
         cop_l.header.stamp = rospy.Time.from_seconds(self.simulation.time)
         sum_of_forces = f_llb[1] + f_llf[1] + f_lrf[1] + f_lrb[1]
         if sum_of_forces > threshold:
-            cop_l.point.x = (f_llf[1] + f_lrf[1] - f_llb[1] - f_lrb[1]) * pos_x / sum_of_forces
+            cop_l.point.x = (f_llf[1] + f_lrf[1] -
+                             f_llb[1] - f_lrb[1]) * pos_x / sum_of_forces
             cop_l.point.x = max(min(cop_l.point.x, pos_x), -pos_x)
-            cop_l.point.y = (f_llf[1] + f_llb[1] - f_lrf[1] - f_lrb[1]) * pos_y / sum_of_forces
+            cop_l.point.y = (f_llf[1] + f_llb[1] -
+                             f_lrf[1] - f_lrb[1]) * pos_y / sum_of_forces
             cop_l.point.y = max(min(cop_l.point.y, pos_y), -pos_y)
         else:
             cop_l.point.x = 0
@@ -228,9 +245,11 @@ class ROSInterface:
         cop_r.header.stamp = rospy.Time.from_seconds(self.simulation.time)
         sum_of_forces = f_rlb[1] + f_rlf[1] + f_rrf[1] + f_rrb[1]
         if sum_of_forces > threshold:
-            cop_r.point.x = (f_rlf[1] + f_rrf[1] - f_rlb[1] - f_rrb[1]) * pos_x / sum_of_forces
+            cop_r.point.x = (f_rlf[1] + f_rrf[1] -
+                             f_rlb[1] - f_rrb[1]) * pos_x / sum_of_forces
             cop_r.point.x = max(min(cop_r.point.x, pos_x), -pos_x)
-            cop_r.point.y = (f_rlf[1] + f_rlb[1] - f_rrf[1] - f_rrb[1]) * pos_y / sum_of_forces
+            cop_r.point.y = (f_rlf[1] + f_rlb[1] -
+                             f_rrf[1] - f_rrb[1]) * pos_y / sum_of_forces
             cop_r.point.y = max(min(cop_r.point.y, pos_y), -pos_y)
         else:
             cop_r.point.x = 0

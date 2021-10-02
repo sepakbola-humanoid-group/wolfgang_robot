@@ -30,6 +30,8 @@ class Simulation:
         self.foot_link_names = foot_link_names
         self.joints_ft = joints_ft
         self.robot = robot
+        self.motor_names = None
+        self.external_motor_names = None
 
         # config values
         self.start_position = [0, 0, 0.43]
@@ -40,12 +42,24 @@ class Simulation:
                                              "RHipPitch": -30, "RHipRoll": 0, "RHipYaw": 0, "RKnee": -60,
                                              "LShoulderPitch": 0, "LShoulderRoll": 0, "LElbow": 45, "RShoulderPitch": 0,
                                              "RShoulderRoll": 0, "RElbow": -45, "HeadPan": 0, "HeadTilt": 0}
-        elif self.robot in ["op2", "robotis_op2"]:
-            self.initial_joints_positions = {"l_ankle_pitch": 0, "l_ankle_roll": 0, "l_hip_pitch": 0, "l_hip_roll": 0,
-                                             "l_hip_yaw": 0, "l_knee": 0, "r_ankle_pitch": 0, "r_ankle_roll": 0,
+        elif self.robot in ["op2", "robotis_op2", "robotis_op3", "op3"]:
+            self.initial_joints_positions = {"l_ank_pitch": 0, "l_ank_roll": 0, "l_hip_pitch": 0, "l_hip_roll": 0,
+                                             "l_hip_yaw": 0, "l_knee": 0, "r_ank_pitch": 0, "r_ank_roll": 0,
                                              "r_hip_pitch": 0, "r_hip_roll": 0, "r_hip_yaw": 0, "r_knee": 0,
-                                             "l_sho_pitch": 0, "l_sho_roll": 0, "LElbow": 0, "r_sho_pitch": 0,
-                                             "r_sho_roll": 0, "RElbow": 0, "head_pan": 0, "head_tilt": 0}
+                                             "l_sho_pitch": 0, "l_sho_roll": 0, "l_el": 0, "r_sho_pitch": 0,
+                                             "r_sho_roll": 0, "r_el": 0, "head_pan": 0, "head_tilt": 0}
+            self.motor_names = ["RShoulderPitch", "LShoulderPitch", "RShoulderRoll",
+                                "LShoulderRoll", "RElbow",
+                                "LElbow", "RHipYaw", "LHipYaw", "RHipRoll", "LHipRoll", "RHipPitch",
+                                "LHipPitch",
+                                "RKnee", "LKnee", "RAnklePitch", "LAnklePitch", "RAnkleRoll", "LAnkleRoll", "HeadPan",
+                                "HeadTilt"]
+
+            self.external_motor_names = ["r_sho_pitch", "l_sho_pitch", "r_sho_roll", "l_sho_roll",
+                                         "r_el", "l_el", "r_hip_yaw", "l_hip_yaw", "r_hip_roll", "l_hip_roll",
+                                         "r_hip_pitch", "l_hip_pitch", "r_knee", "l_knee", "r_ank_pitch",
+                                         "l_ank_pitch", "r_ank_roll", "l_ank_roll", "head_pan", "head_tilt"]
+
             self.foot_link_names = ["l_foot", "r_foot"]
         elif self.robot == "sigmaban":
             self.start_orientation = p.getQuaternionFromEuler((0, 0.0, 0))
@@ -92,14 +106,16 @@ class Simulation:
             self.terrain = Terrain(self.max_terrain_height)
             self.terrain_index = self.terrain.id
         else:
-            p.setAdditionalSearchPath(pybullet_data.getDataPath())  # needed for plane.urdf
+            # needed for plane.urdf
+            p.setAdditionalSearchPath(pybullet_data.getDataPath())
             self.plane_index = p.loadURDF('plane.urdf')
 
         self.field_index = None
         if self.field_on:
             # Load field
             rospack = rospkg.RosPack()
-            path = os.path.join(rospack.get_path('wolfgang_pybullet_sim'), 'models')
+            path = os.path.join(rospack.get_path(
+                'wolfgang_pybullet_sim'), 'models')
             p.setAdditionalSearchPath(path)  # needed to find field model
             self.field_index = p.loadURDF('field/field.urdf')
 
@@ -115,12 +131,16 @@ class Simulation:
             # use wolfgang as standard
             rospack = rospkg.RosPack()
             if self.robot == "op2":
-                self.urdf_path = rospack.get_path("robotis_op2_description") + "/urdf/robot.urdf"
+                self.urdf_path = rospack.get_path(
+                    "robotis_op2_description") + "/urdf/robot.urdf"
             elif self.robot == "sigmaban":
-                self.urdf_path = rospack.get_path("sigmaban_description") + "/urdf/robot.urdf"
+                self.urdf_path = rospack.get_path(
+                    "sigmaban_description") + "/urdf/robot.urdf"
             else:
-                self.urdf_path = rospack.get_path("wolfgang_description") + "/urdf/robot.urdf"
-        self.robot_index = p.loadURDF(self.urdf_path, self.start_position, self.start_orientation, flags=flags)
+                self.urdf_path = rospack.get_path(
+                    "wolfgang_description") + "/urdf/robot.urdf"
+        self.robot_index = p.loadURDF(
+            self.urdf_path, self.start_position, self.start_orientation, flags=flags)
 
         # Retrieving joints and foot pressure sensors
         self.joints = {}
@@ -141,10 +161,14 @@ class Simulation:
                 if self.joints_ft:
                     p.enableJointForceTorqueSensor(self.robot_index, i)
                 # remember joint if its revolute (0) and not fixed (4)
-                self.joints[name] = Joint(i, self.robot_index, ft=self.joints_ft)
+                name = self.external_motor_names[self.motor_names.index(name)] if (
+                    self.motor_names and self.external_motor_names) else name
+                self.joints[name] = Joint(
+                    i, self.robot_index, ft=self.joints_ft, motor_names=self.motor_names, external_motors=self.external_motor_names)
             elif name in ["LLB", "LLF", "LRF", "LRB", "RLB", "RLF", "RRF", "RRB"]:
                 p.enableJointForceTorqueSensor(self.robot_index, i)
-                self.pressure_sensors[name] = PressureSensor(name, i, self.robot_index, 10, 5)
+                self.pressure_sensors[name] = PressureSensor(
+                    name, i, self.robot_index, 10, 5)
 
         for linkA in self.links.keys():
             for linkB in self.links.keys():
@@ -157,7 +181,8 @@ class Simulation:
             hip_group = ["torso", "r_hip_1", "r_hip_2", "l_hip_1", "l_hip_2"]
             foot_group = ["r_ankle", "r_foot", "l_ankle", "l_foot"]
         elif self.robot in ("sigmaban"):
-            hip_group = ["mx106_block_mir_1", "u_block_1", "right_knee_1", "left_knee_1", "mx106_block_2", "u_block_2"]
+            hip_group = ["mx106_block_mir_1", "u_block_1",
+                         "right_knee_1", "left_knee_1", "mx106_block_2", "u_block_2"]
             foot_group = ["tibia_1", "mx106_block_1", "right_foot_cleat_back_left", "mx106_block_mir_2",
                           "left_foot_cleat_front_right", "tibia_2"]
         for hip_link_index in hip_group:
@@ -174,7 +199,8 @@ class Simulation:
         :param force: direction and amount of applied force (vec3)
         :param position: where on the link the force should be applied (vec3)
         """
-        p.applyExternalForce(self.robot_index, link_id, force, position, flags=p.WORLD_FRAME)
+        p.applyExternalForce(self.robot_index, link_id,
+                             force, position, flags=p.WORLD_FRAME)
 
     def set_foot_dynamics(self, contact_damping, contact_stiffness, joint_damping, lateral_friction=1,
                           spinning_friction=1, rolling_friction=1, restitution=0):
@@ -210,7 +236,8 @@ class Simulation:
             joint_info = p.getJointInfo(self.robot_index, i)
             name = joint_info[1].decode('utf-8')
             if name in ["LLB", "LLF", "LRF", "LRB", "RLB", "RLF", "RRF", "RRB"]:
-                self.pressure_sensors[name] = PressureSensor(name, i, self.robot_index, cutoff, order)
+                self.pressure_sensors[name] = PressureSensor(
+                    name, i, self.robot_index, cutoff, order)
 
     def reset(self):
         # set joints to initial position
@@ -224,7 +251,8 @@ class Simulation:
             joint.set_position(pos_in_rad)
 
         # reset body pose and velocity
-        p.resetBasePositionAndOrientation(self.robot_index, self.start_position, self.start_orientation)
+        p.resetBasePositionAndOrientation(
+            self.robot_index, self.start_position, self.start_orientation)
         p.resetBaseVelocity(self.robot_index, [0, 0, 0], [0, 0, 0])
 
     def step(self):
@@ -265,13 +293,16 @@ class Simulation:
                 self.terrain.randomize(0.01)
             if jKey in keys and keys[jKey] & p.KEY_WAS_TRIGGERED:
                 pos, rpy = self.get_robot_pose_rpy()
-                self.reset_robot_pose_rpy(pos, (rpy[0] + math.radians(30), rpy[1], rpy[2]))
+                self.reset_robot_pose_rpy(
+                    pos, (rpy[0] + math.radians(30), rpy[1], rpy[2]))
             if kKey in keys and keys[kKey] & p.KEY_WAS_TRIGGERED:
                 pos, rpy = self.get_robot_pose_rpy()
-                self.reset_robot_pose_rpy(pos, (rpy[0], rpy[1] + math.radians(30), rpy[2]))
+                self.reset_robot_pose_rpy(
+                    pos, (rpy[0], rpy[1] + math.radians(30), rpy[2]))
             if lKey in keys and keys[lKey] & p.KEY_WAS_TRIGGERED:
                 pos, rpy = self.get_robot_pose_rpy()
-                self.reset_robot_pose_rpy(pos, (rpy[0], rpy[1], rpy[2] + math.radians(30)))
+                self.reset_robot_pose_rpy(
+                    pos, (rpy[0], rpy[1], rpy[2] + math.radians(30)))
             if qKey in keys and keys[qKey] & p.KEY_WAS_TRIGGERED:
                 pos, quat = self.get_robot_pose()
                 self.reset_robot_pose((pos[0] + 0.1, pos[1], pos[2]), quat)
@@ -296,7 +327,8 @@ class Simulation:
 
         if self.real_time:
             # wait till one timestep has actually passed in real time
-            time.sleep(max(0, self.timestep - (time.time() - self.last_wall_time)))
+            time.sleep(
+                max(0, self.timestep - (time.time() - self.last_wall_time)))
         self.last_wall_time = time.time()
         self.time += self.timestep
         p.stepSimulation()
@@ -311,7 +343,8 @@ class Simulation:
         self.gravity = active
 
     def set_robot_pose(self, position, orientation):
-        p.resetBasePositionAndOrientation(self.robot_index, position, orientation)
+        p.resetBasePositionAndOrientation(
+            self.robot_index, position, orientation)
 
     def reset_simulation(self):
         p.resetSimulation()
@@ -319,7 +352,8 @@ class Simulation:
 
     def reset_robot_pose(self, position, orientation):
         # reset body pose and velocity
-        p.resetBasePositionAndOrientation(self.robot_index, position, orientation)
+        p.resetBasePositionAndOrientation(
+            self.robot_index, position, orientation)
         p.resetBaseVelocity(self.robot_index, [0, 0, 0], [0, 0, 0])
         # we need to reset all joints to, otherwise they still have velocity
         for name in self.joints:
@@ -366,11 +400,12 @@ class Simulation:
 
 
 class Joint:
-    def __init__(self, joint_index, body_index, ft=False):
+    def __init__(self, joint_index, body_index, ft=False, motor_names=None, external_motors=None):
         self.joint_index = joint_index
         self.body_index = body_index
         joint_info = p.getJointInfo(self.body_index, self.joint_index)
-        self.name = joint_info[1].decode('utf-8')
+        self.name = external_motors[motor_names.index(joint_info[1].decode(
+            'utf-8'))] if (motor_names and external_motors) else joint_info[1].decode('utf-8')
         self.type = joint_info[2]
         self.max_force = joint_info[10]
         self.max_velocity = joint_info[11]
@@ -379,9 +414,11 @@ class Joint:
         self.damping = joint_info[6]
         self.friction = joint_info[7]
         self.ft = ft
+        self.external_motors = external_motors
 
     def reset_position(self, position, velocity):
-        p.resetJointState(self.body_index, self.joint_index, targetValue=position, targetVelocity=velocity)
+        p.resetJointState(self.body_index, self.joint_index,
+                          targetValue=position, targetVelocity=velocity)
         # self.disable_motor()
 
     def disable_motor(self):
@@ -396,7 +433,8 @@ class Joint:
                                 maxVelocity=self.max_velocity)
 
     def get_state(self):
-        position, velocity, forces, applied_torque = p.getJointState(self.body_index, self.joint_index)
+        position, velocity, forces, applied_torque = p.getJointState(
+            self.body_index, self.joint_index)
         return position, velocity, forces, applied_torque
 
     def get_position(self):
@@ -428,13 +466,15 @@ class PressureSensor:
         self.body_index = body_index
         nyq = 240 * 0.5  # nyquist frequency from simulation frequency
         normalized_cutoff = cutoff / nyq  # cutoff freq in hz
-        self.filter_b, self.filter_a = signal.butter(order, normalized_cutoff, btype='low')
+        self.filter_b, self.filter_a = signal.butter(
+            order, normalized_cutoff, btype='low')
         self.filter_state = signal.lfilter_zi(self.filter_b, 1)
         self.unfiltered = 0
         self.filtered = [0]
 
     def filter_step(self):
-        self.unfiltered = p.getJointState(self.body_index, self.joint_index)[2][2] * -1
+        self.unfiltered = p.getJointState(
+            self.body_index, self.joint_index)[2][2] * -1
         self.filtered, self.filter_state = signal.lfilter(self.filter_b, self.filter_a, [self.unfiltered],
                                                           zi=self.filter_state)
 
